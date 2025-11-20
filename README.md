@@ -210,10 +210,6 @@ cd admin-panel && python3 -m http.server 8080
 
 This project is licensed under the MIT License - see the LICENSE file for details.
 
-## 📞 Support
 
-For support, email support@Gamyartha.com or create an issue in the repository.
-
----
 
 **Made with ❤️ for better financial management**
