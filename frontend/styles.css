@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2025 Gamyartha. All rights reserved.
+ */
+
 /* Global Font and Background */
 html, body {
     height: 100%;
@@ -276,4 +280,53 @@ input:checked ~ .dot {
 .suggestion-chip:hover {
     background-color: #c7d2fe; /* Darker on hover */
     transform: translateY(-1px);
+}
+
+/* --- Onboarding Tour Styles --- */
+.onboarding-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.7);
+    z-index: 9998;
+    transition: opacity 0.3s ease;
+}
+
+.onboarding-highlight {
+    position: relative;
+    z-index: 9999;
+    box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.7);
+    border-radius: 8px;
+}
+
+.onboarding-popover {
+    position: absolute;
+    z-index: 10000;
+    background-color: white;
+    padding: 16px;
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+    max-width: 300px;
+    border: 1px solid #e5e7eb;
+    animation: popover-fade-in 0.3s ease-out;
+}
+
+.onboarding-popover h3 {
+    font-size: 1.125rem; /* text-lg */
+    font-weight: 700;
+    color: #4338ca; /* indigo-700 */
+    margin-bottom: 8px;
+}
+
+.onboarding-popover p {
+    font-size: 0.875rem; /* text-sm */
+    color: #4b5563; /* gray-600 */
+    line-height: 1.5;
+}
+
+@keyframes popover-fade-in {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
 }

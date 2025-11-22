@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2025 Gamyartha. All rights reserved.
+ */
+
 const express = require('express');
 const mysql = require('mysql2/promise');
 const nodemailer = require('nodemailer');
@@ -7,6 +11,7 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const path = require('path');
+const fetch = require('node-fetch'); // Add this line to import node-fetch
 require('dotenv').config();
 
 const app = express();
@@ -1065,7 +1070,8 @@ Provide specific, actionable advice for each category.
 
 
             // 4. Call Gemini API
-            const geminiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${GEMINI_API_KEY}`, {
+            // const geminiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${GEMINI_API_KEY}`, {
+               const geminiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${GEMINI_API_KEY}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -1146,7 +1152,7 @@ Active Goals: ${JSON.stringify(contextData.goals)}
         };
 
         // 5. Call Gemini API
-        const geminiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${GEMINI_API_KEY}`, {
+        const geminiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${GEMINI_API_KEY}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
@@ -1206,7 +1212,7 @@ app.get('/api/admin/users', authenticateToken, async (req, res) => {
         connection.release();
 
         res.json({ users });
-        
+
     } catch (error) {
         console.error('Get admin users error:', error);
         res.status(500).json({ error: 'Failed to get users' });

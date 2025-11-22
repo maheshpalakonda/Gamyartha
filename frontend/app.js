@@ -31,6 +31,11 @@ const appState = {
     isShared: false,
     currentLanguage: 'en',
     alert: { message: '', type: '' },
+    // Pagination/Visibility State
+    visibleTransactionsCount: 5,
+    visibleGoalsCount: 3,
+    visibleObligationsCount: 3,
+    visibleBudgetsCount: 3,
     authView: 'login', // 'login' or 'create'
     currentMainView: 'dashboard', // 'dashboard', 'profile', 'admin', 'groups', or 'splits'
 
@@ -65,6 +70,7 @@ const D = {
     userIdDisplay: document.getElementById('user-id-display'),
     languageSelector: document.getElementById('language-selector'),
     alertContainer: document.getElementById('alert-container'),
+    onboardingContainer: document.getElementById('onboarding-container'),
     logoutBtn: document.getElementById('logout-btn'),
     headerDetails: document.getElementById('header-details'),
     fabContainer: document.getElementById('fab-container'),
@@ -241,7 +247,8 @@ const translations = {
         
         const renderDashboard = () => {
             const summary = computeSummary();
-            const dueAlertCount = appState.obligations.filter(o => isDueSoon(o.dueDate)).length;
+            const dueAlertCount = appState.obligations.filter(o => !o.isPaid && isDueSoon(o.dueDate)).length;
+
             
             D.logoutBtn.textContent = T('LOGOUT');
             D.logoutBtn.classList.remove('hidden');
@@ -820,7 +827,10 @@ window.addMoneyToGoal = async (goalId) => {
                             <label for="description-input" class="block text-sm font-medium text-gray-700">${T('DESCRIPTION_LABEL')}</label>
                             <div class="flex space-x-1 sm:space-x-2">
                                 <button type="button" id="voice-entry-btn" class="mt-1 flex-shrink-0 px-3 py-2 bg-indigo-100 text-indigo-700 rounded-md hover:bg-indigo-200 transition duration-150 text-sm">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4z" clip-rule="evenodd" /><path d="M5.586 15H4a1 1 0 01-1-1v-4H2V6h10v4h-1v4a1 1 0 01-1 1h-1.586A3 3 0 0010 18a3 3 0 00-2.414-3H7zM16 12a1 1 0 100 2h1a1 1 0 100-2h-1z" /></svg>
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                        <path d="M7 4a3 3 0 016 0v6a3 3 0 11-6 0V4z" />
+                                        <path d="M5.5 13.5A4.5 4.5 0 0010 18v-2.5a2.5 2.5 0 01-5 0V13.5zM10 18a4.5 4.5 0 004.5-4.5V13.5a2.5 2.5 0 01-5 0V18zM14.5 13.5a2.5 2.5 0 01-5 0V18a4.5 4.5 0 004.5-4.5z" />
+                                    </svg>
                                 </button>
                                 <input
                                     id="description-input" type="text" value="${appState.description}"
@@ -885,7 +895,12 @@ window.addMoneyToGoal = async (goalId) => {
                 renderGoalTracker();
             }];
 
-            const goalCards = appState.goals.map(goal => {
+            const visibleGoals = appState.goals.slice(0, appState.visibleGoalsCount);
+            const hasMoreGoals = appState.goals.length > appState.visibleGoalsCount;
+            const showLessGoals = appState.visibleGoalsCount > 3;
+
+
+            const goalCards = visibleGoals.map(goal => {
                 const remaining = goal.targetAmount - (goal.saved_amount
  || 0);
                 const progress = Math.min(100, ((goal.saved_amount || 0) / goal.targetAmount) * 100);
@@ -959,6 +974,17 @@ window.addMoneyToGoal = async (goalId) => {
                         <div class="space-y-4">
                             ${goalCards}
                         </div>
+
+                        <!-- Show More/Less Buttons -->
+                        <div class="mt-4 flex justify-center space-x-4">
+                            ${hasMoreGoals ? `
+                                <button id="show-more-goals" class="text-sm font-medium text-blue-600 hover:underline">Show More</button>
+                            ` : ''}
+                            ${showLessGoals ? `
+                                <button id="show-less-goals" class="text-sm font-medium text-gray-600 hover:underline">Show Less</button>
+                            ` : ''}
+                        </div>
+
                     `}
                 </div>
             `;
@@ -966,6 +992,19 @@ window.addMoneyToGoal = async (goalId) => {
             // Attach event listeners for Goal Tracker
             document.getElementById('add-goal-toggle').onclick = () => setShowForm(!showForm);
             if (showForm) document.getElementById('goal-form').onsubmit = handleAddGoal;
+
+            if (hasMoreGoals) {
+                document.getElementById('show-more-goals').onclick = () => {
+                    appState.visibleGoalsCount += 3;
+                    renderGoalTracker();
+                };
+            }
+            if (showLessGoals) {
+                document.getElementById('show-less-goals').onclick = () => {
+                    appState.visibleGoalsCount = 3;
+                    renderGoalTracker();
+                };
+            }
         };
 
         const renderObligationsTracker = () => {
@@ -975,24 +1014,35 @@ window.addMoneyToGoal = async (goalId) => {
                 renderObligationsTracker();
             }];
 
-            const obligationCards = appState.obligations.map(obligation => {
-                const isAlert = isDueSoon(obligation.dueDate);
+            const visibleObligations = appState.obligations.slice(0, appState.visibleObligationsCount);
+            const hasMoreObligations = appState.obligations.length > appState.visibleObligationsCount;
+            const showLessObligations = appState.visibleObligationsCount > 3;
+
+
+            const obligationCards = visibleObligations.map(obligation => {
+                const isAlert = isDueSoon(obligation.dueDate) && !obligation.isPaid;
                 const daysLeft = Math.ceil((new Date(obligation.dueDate).getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 
                 return `
-                    <div class="p-3 rounded-xl flex justify-between items-center shadow-sm transition ${isAlert ? 'bg-yellow-100 border-l-4 border-yellow-500' : 'bg-white border-l-4 border-gray-300'}">
+                    <div class="p-3 rounded-xl flex justify-between items-center shadow-sm transition ${isAlert ? 'bg-yellow-100 border-l-4 border-yellow-500' : (obligation.isPaid ? 'bg-green-50 border-l-4 border-green-300' : 'bg-white border-l-4 border-gray-300')}">
                         <div>
                             <h3 class="font-semibold text-gray-800">${obligation.description}</h3>
                             <p class="text-sm text-gray-500">
                                 ${T('DUE_DATE')}: <span class="font-medium text-red-600">${new Date(obligation.dueDate).toLocaleDateString()}</span>
-                                ${daysLeft >= 0 ? `<span class="ml-2 text-xs font-bold text-yellow-700">(${daysLeft} days left)</span>` : ''}
+                                ${!obligation.isPaid && daysLeft >= 0 ? `<span class="ml-2 text-xs font-bold text-yellow-700">(${daysLeft} days left)</span>` : ''}
                             </p>
                         </div>
                         <div class="text-right">
                             <p class="font-extrabold text-lg text-red-600 mb-1">${formatCurrency(obligation.amount)}</p>
-                            <button data-id="${obligation.id}" class="mark-paid-btn text-xs bg-green-500 text-white px-2 py-1 rounded-full hover:bg-green-600 transition">
-                                ${T('MARK_PAID')}
-                            </button>
+                            ${obligation.isPaid ? `
+                                <button disabled class="text-xs bg-gray-400 text-white px-3 py-1 rounded-full cursor-not-allowed">
+                                    Paid
+                                </button>
+                            ` : `
+                                <button data-id="${obligation.id}" class="mark-paid-btn text-xs bg-green-500 text-white px-3 py-1 rounded-full hover:bg-green-600 transition">
+                                    ${T('MARK_PAID')}
+                                </button>
+                            `}
                         </div>
                     </div>
                 `;
@@ -1026,6 +1076,17 @@ window.addMoneyToGoal = async (goalId) => {
                         <div class="space-y-3">
                             ${obligationCards}
                         </div>
+
+                        <!-- Show More/Less Buttons -->
+                        <div class="mt-4 flex justify-center space-x-4">
+                            ${hasMoreObligations ? `
+                                <button id="show-more-obligations" class="text-sm font-medium text-blue-600 hover:underline">Show More</button>
+                            ` : ''}
+                            ${showLessObligations ? `
+                                <button id="show-less-obligations" class="text-sm font-medium text-gray-600 hover:underline">Show Less</button>
+                            ` : ''}
+                        </div>
+
                     `}
                 </div>
             `;
@@ -1033,11 +1094,24 @@ window.addMoneyToGoal = async (goalId) => {
             // Attach event listeners for Obligations Tracker
             document.getElementById('add-obligation-toggle').onclick = () => setShowForm(!showForm);
             if (showForm) document.getElementById('obligation-form').onsubmit = handleAddObligation;
+
+            if (hasMoreObligations) {
+                document.getElementById('show-more-obligations').onclick = () => {
+                    appState.visibleObligationsCount += 3;
+                    renderObligationsTracker();
+                };
+            }
+            if (showLessObligations) {
+                document.getElementById('show-less-obligations').onclick = () => {
+                    appState.visibleObligationsCount = 3;
+                    renderObligationsTracker();
+                };
+            }
             
             document.querySelectorAll('.mark-paid-btn').forEach(button => {
                 button.onclick = () => {
                     const obligationId = button.dataset.id;
-                    const obligation = appState.obligations.find(o => o.id === obligationId);
+                    const obligation = appState.obligations.find(o => o.id == obligationId);
                     if (obligation) markObligationPaid(obligation);
                 };
             });
@@ -1052,7 +1126,11 @@ window.addMoneyToGoal = async (goalId) => {
                 renderBudgetsTracker();
             }];
         
-            const budgetCards = (appState.budgets || []).map(budget => {
+            const visibleBudgets = (appState.budgets || []).slice(0, appState.visibleBudgetsCount);
+            const hasMoreBudgets = (appState.budgets || []).length > appState.visibleBudgetsCount;
+            const showLessBudgets = appState.visibleBudgetsCount > 3;
+
+            const budgetCards = visibleBudgets.map(budget => {
                 const spent = budget.spent_amount || 0;
                 const remaining = budget.amount - spent;
                 const progress = Math.min(100, (spent / budget.amount) * 100);
@@ -1104,12 +1182,36 @@ window.addMoneyToGoal = async (goalId) => {
                         </form>
                     ` : ''}
         
-                    ${(appState.budgets || []).length === 0 ? `<p class="text-gray-500 text-center py-4">Set a budget to track your spending!</p>` : `<div class="space-y-4">${budgetCards}</div>`}
+                    ${(appState.budgets || []).length === 0 ? `<p class="text-gray-500 text-center py-4">Set a budget to track your spending!</p>` : `
+                        <div class="space-y-4">${budgetCards}</div>
+                        <!-- Show More/Less Buttons -->
+                        <div class="mt-4 flex justify-center space-x-4">
+                            ${hasMoreBudgets ? `
+                                <button id="show-more-budgets" class="text-sm font-medium text-blue-600 hover:underline">Show More</button>
+                            ` : ''}
+                            ${showLessBudgets ? `
+                                <button id="show-less-budgets" class="text-sm font-medium text-gray-600 hover:underline">Show Less</button>
+                            ` : ''}
+                        </div>
+                    `}
                 </div>
             `;
         
             document.getElementById('add-budget-toggle').onclick = () => setShowForm(!showForm);
             if (showForm) document.getElementById('budget-form').onsubmit = handleAddBudget;
+
+            if (hasMoreBudgets) {
+                document.getElementById('show-more-budgets').onclick = () => {
+                    appState.visibleBudgetsCount += 3;
+                    renderBudgetsTracker();
+                };
+            }
+            if (showLessBudgets) {
+                document.getElementById('show-less-budgets').onclick = () => {
+                    appState.visibleBudgetsCount = 3;
+                    renderBudgetsTracker();
+                };
+            }
         };
 
         const renderCategoryChart = (expensesByCategory) => {
@@ -1120,12 +1222,18 @@ window.addMoneyToGoal = async (goalId) => {
                 return;
             }
 
-            const maxAmount = Math.max(...Object.values(expensesByCategory));
-            const barHeight = 20; 
-            const height = categories.length * (barHeight + 10);
+            // Sort categories by amount and take the top 7
+            const sortedCategories = Object.entries(expensesByCategory)
+                .sort(([, a], [, b]) => b - a)
+                .slice(0, 7);
 
-            let chartSVG = categories.map((category, index) => {
-                const amount = expensesByCategory[category];
+            if (sortedCategories.length === 0) return;
+
+            const maxAmount = sortedCategories[0][1]; // The highest amount is the first one
+            const barHeight = 20; 
+            const height = sortedCategories.length * (barHeight + 10);
+
+            let chartSVG = sortedCategories.map(([category, amount], index) => {
                 const widthPercentage = (amount / maxAmount) * 100;
                 const y = index * (barHeight + 10);
                 const color = `hsl(${index * 50}, 70%, 50%)`;
@@ -1175,7 +1283,11 @@ window.addMoneyToGoal = async (goalId) => {
                 return;
             }
 
-            const historyList = appState.transactions.map(t => {
+            const visibleTransactions = appState.transactions.slice(0, appState.visibleTransactionsCount);
+            const hasMoreTransactions = appState.transactions.length > appState.visibleTransactionsCount;
+            const showLessTransactions = appState.visibleTransactionsCount > 5;
+
+            const historyList = visibleTransactions.map(t => {
                 const isIncome = t.type === 'income';
                 const colorClass = isIncome ? 'bg-green-50 border-l-4 border-green-400' : 'bg-red-50 border-l-4 border-red-400';
                 const amountColor = isIncome ? 'text-green-600' : 'text-red-600';
@@ -1213,9 +1325,32 @@ window.addMoneyToGoal = async (goalId) => {
                 </div>
                 <div class="space-y-3 pb-20">
                     ${historyList}
+
+                    <!-- Show More/Less Buttons -->
+                    <div class="mt-4 flex justify-center space-x-4">
+                        ${hasMoreTransactions ? `
+                            <button id="show-more-transactions" class="text-sm font-medium text-blue-600 hover:underline">Show More</button>
+                        ` : ''}
+                        ${showLessTransactions ? `
+                            <button id="show-less-transactions" class="text-sm font-medium text-gray-600 hover:underline">Show Less</button>
+                        ` : ''}
+                    </div>
                 </div>
             `;
             document.getElementById('export-tax-btn').onclick = exportTaxLedger;
+
+            if (hasMoreTransactions) {
+                document.getElementById('show-more-transactions').onclick = () => {
+                    appState.visibleTransactionsCount += 5;
+                    renderTransactionHistory();
+                };
+            }
+            if (showLessTransactions) {
+                document.getElementById('show-less-transactions').onclick = () => {
+                    appState.visibleTransactionsCount = 5;
+                    renderTransactionHistory();
+                };
+            }
         };
         
         // --- CHATBOT UI & LOGIC ---
@@ -1507,6 +1642,12 @@ window.addMoneyToGoal = async (goalId) => {
             appState.isChatThinking = true;
             renderChatWindow();
 
+            // Add a timeout to the fetch request for better error handling
+            const controller = new AbortController();
+            const timeoutMs = 20000; // 20 seconds
+            const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+
             // Prepare conversation with proper translation for welcome message
             const conversation = appState.chatHistory.map(msg => {
                 let text = msg.text;
@@ -1528,8 +1669,11 @@ window.addMoneyToGoal = async (goalId) => {
                         message: queryText,
                         history: conversation,
                         language: appState.currentLanguage
-                    })
+                    }),
+                    signal: controller.signal // Attach the abort signal
                 });
+
+                clearTimeout(timeout); // Clear the timeout if we get a response
 
                 if (!response.ok) {
                     const errorData = await response.json();
@@ -1543,10 +1687,15 @@ window.addMoneyToGoal = async (goalId) => {
                 appState.chatHistory.push({ role: 'model', text: aiText });
 
             } catch (error) {
-                console.error("Chatbot API Failed:", error);
-                appState.chatHistory.push({ role: 'model', text: T("I'm sorry, I'm having trouble connecting to the network right now. Please try again later.") });
+                if (error.name === 'AbortError') {
+                    console.error("Chatbot request timed out");
+                    appState.chatHistory.push({ role: 'model', text: "The request took too long to respond. Please try a simpler question or check your network." });
+                } else {
+                    console.error("Chatbot API Failed:", error);
+                    appState.chatHistory.push({ role: 'model', text: "I'm sorry, I'm having trouble connecting to the network right now. Please try again later." });
+                }
             } finally {
-                // 5. Reset thinking state and re-render
+                clearTimeout(timeout);
                 appState.isChatThinking = false;
                 renderChatWindow();
             }
@@ -1595,7 +1744,7 @@ window.addMoneyToGoal = async (goalId) => {
             renderChatWindow(); // Ensure chat window updates on language/thinking state change
             
             // Check for obligations due TODAY
-            const dueToday = appState.obligations.find(o => isDueToday(o.dueDate));
+            const dueToday = appState.obligations.find(o => isDueToday(o.dueDate) && !o.isPaid);
             if (dueToday) {
                 setAlert(T('DUE_TODAY_ALERT').replace('%s', dueToday.description), 'error');
             } else {
@@ -1612,6 +1761,140 @@ window.addMoneyToGoal = async (goalId) => {
             }
             renderAlertBanner();
         };
+
+        // --- ONBOARDING TOUR LOGIC ---
+        const tourSteps = [
+            {
+                element: '#transaction-form',
+                title: 'Welcome to Gamyartha!',
+                text: 'This is the Smart Entry form. You can add expenses or income here. Use the "AI Analyze" button to automatically fill details from a text message or note!',
+                position: 'bottom'
+            },
+            {
+                element: '#summary-cards',
+                title: 'Your Financial Summary',
+                text: 'Quickly see your total income, expenses, and net balance for the current period at a glance.',
+                position: 'bottom'
+            },
+            {
+                element: '#obligations-tracker-container',
+                title: 'Due Date Alerts',
+                text: 'Never miss a bill payment again! Add your credit card bills, rent, or any recurring payments here to get timely reminders.',
+                position: 'top'
+            },
+            {
+                element: '#goals-tracker-container',
+                title: 'Savings Goals',
+                text: 'Planning for a vacation or a new gadget? Set your savings goals here and track your progress towards achieving them.',
+                position: 'top'
+            },
+            {
+                element: '#budgets-tracker-container',
+                title: 'Monthly Budgets',
+                text: 'Set monthly spending limits for different categories to keep your finances in check. We\'ll warn you if you\'re about to go over!',
+                position: 'top'
+            },
+            {
+                element: '#history-container',
+                title: 'Transaction History',
+                text: 'All your recorded income and expenses will appear here. You can see your full financial history at a glance.',
+                position: 'top'
+            },
+            {
+                element: '#chat-fab-wrapper',
+                title: 'Your AI Financial Advisor',
+                text: 'This is Gamyartha, your personal AI assistant. Click here to ask financial questions, get budget suggestions, or analyze your spending habits.',
+                position: 'left'
+            }
+        ];
+
+    const waitForElement = (selector, callback) => {
+        const element = document.querySelector(selector);
+        if (element) {
+            callback();
+        } else {
+            let attempts = 0;
+            const interval = setInterval(() => {
+                const el = document.querySelector(selector);
+                attempts++;
+                if (el) {
+                    clearInterval(interval);
+                    callback();
+                } else if (attempts > 20) { // Give up after 2 seconds
+                    clearInterval(interval);
+                    console.warn(`Onboarding tour could not find element: ${selector}`);
+                }
+            }, 100);
+        }
+    };
+
+        let currentTourStep = 0;
+
+        const startOnboardingTour = () => {
+            currentTourStep = 0;
+            showTourStep(currentTourStep);
+        };
+
+        const showTourStep = (stepIndex) => {
+            if (stepIndex >= tourSteps.length) {
+                endOnboardingTour();
+                return;
+            }
+
+            const step = tourSteps[stepIndex];
+            
+            // Use the waitForElement utility to prevent race conditions
+            waitForElement(step.element, () => {
+                const targetElement = document.querySelector(step.element);
+
+                if (!targetElement) {
+                    // If element still doesn't exist after waiting, skip to next step
+                    showTourStep(stepIndex + 1);
+                    return;
+                }
+
+                const rect = targetElement.getBoundingClientRect();
+                
+                let popoverStyle = '';
+                switch(step.position) {
+                    case 'bottom': popoverStyle = `top: ${rect.bottom + 15}px; left: ${rect.left}px;`; break;
+                    case 'top': popoverStyle = `bottom: ${window.innerHeight - rect.top + 15}px; left: ${rect.left}px;`; break;
+                    case 'left': popoverStyle = `top: ${rect.top}px; right: ${window.innerWidth - rect.left + 15}px;`; break;
+                    case 'right': popoverStyle = `top: ${rect.top}px; left: ${rect.right + 15}px;`; break;
+                }
+
+                D.onboardingContainer.innerHTML = `
+                    <div class="onboarding-overlay"></div>
+                    <div class="onboarding-popover" style="${popoverStyle}">
+                        <h3>${step.title}</h3>
+                        <p>${step.text}</p>
+                        <div class="mt-4 flex justify-between items-center">
+                            <button id="skip-tour-btn" class="text-xs text-gray-500 hover:underline">Skip Tour</button>
+                            <button id="next-tour-btn" class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-indigo-700">
+                                ${stepIndex === tourSteps.length - 1 ? 'Finish' : 'Next'}
+                            </button>
+                        </div>
+                    </div>
+                `;
+
+                targetElement.classList.add('onboarding-highlight');
+
+                document.getElementById('next-tour-btn').onclick = () => {
+                    targetElement.classList.remove('onboarding-highlight');
+                    showTourStep(stepIndex + 1);
+                };
+                document.getElementById('skip-tour-btn').onclick = () => {
+                    targetElement.classList.remove('onboarding-highlight');
+                    endOnboardingTour();
+                };
+            });
+        };
+
+        const endOnboardingTour = () => {
+            D.onboardingContainer.innerHTML = '';
+            localStorage.setItem('hasVisitedGamyartha', 'true');
+        };
+
 
         // --- AUTH LOGIC (Error handling updated) ---
 
@@ -1670,6 +1953,13 @@ window.addMoneyToGoal = async (goalId) => {
                 renderChatWindow();
 
                 await initializeListeners(); // Fetch user data after successful login
+
+                // Check for first-time visit
+                if (!localStorage.getItem('hasVisitedGamyartha')) {
+                    // Add a small delay to ensure the dashboard is fully rendered before starting the tour
+                    setTimeout(startOnboardingTour, 500);
+                }
+
                 updateUI(); // Re-render the UI to show the dashboard
 
             } catch (error) {
@@ -1730,6 +2020,11 @@ window.addMoneyToGoal = async (goalId) => {
                 renderChatWindow();
 
                 await initializeListeners(); // Fetch user data after successful account creation
+
+                // Start onboarding for new users
+                // Add a small delay to ensure the dashboard is fully rendered before starting the tour
+                setTimeout(startOnboardingTour, 500);
+
                 updateUI(); // Re-render the UI to show the dashboard
             } catch (error) {
                 console.error("Create Account Error:", error.message);
@@ -2400,6 +2695,9 @@ window.addMoneyToGoal = async (goalId) => {
                 obligation.isPaid = true;
 
                 setAlert(`Payment of ${formatCurrency(obligation.amount)} recorded and obligation cleared.`, 'success');
+
+                // Re-render the entire dashboard to update the alert count and all sections
+                renderDashboard();
 
             } catch (error) {
                  console.error("Error marking obligation paid:", error);
