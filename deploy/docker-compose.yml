@@ -1,0 +1,45 @@
+version: "3.9"
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: gamyartha-mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: gamyartha
+      MYSQL_USER: gamyartha_user
+      MYSQL_PASSWORD: gamyartha_pass
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ../backend/database_setup.sql:/docker-entrypoint-initdb.d/1_schema.sql
+
+  backend:
+    image: mahesh1925/gamyartha-backend:latest
+    container_name: gamyartha-backend
+    restart: always
+    depends_on:
+      - mysql
+    ports:
+      - "5000:5000"
+    environment:
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USER: gamyartha_user
+      DB_PASSWORD: gamyartha_pass
+      DB_NAME: gamyartha
+
+  frontend:
+    image: mahesh1925/gamyartha-frontend:latest
+    container_name: gamyartha-frontend
+    restart: always
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+
+volumes:
+  mysql_data:
+
