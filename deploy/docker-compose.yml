@@ -1,6 +1,7 @@
 version: "3.9"
 
 services:
+
   mysql:
     image: mysql:8.0
     container_name: gamyartha-mysql
@@ -14,14 +15,20 @@ services:
       - "3306:3306"
     volumes:
       - mysql_data:/var/lib/mysql
-      - ../backend/database_setup.sql:/docker-entrypoint-initdb.d/1_schema.sql
+      - ./database_setup.sql:/docker-entrypoint-initdb.d/1_schema.sql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
 
   backend:
     image: mahesh1925/gamyartha-backend:latest
     container_name: gamyartha-backend
     restart: always
     depends_on:
-      - mysql
+      mysql:
+        condition: service_healthy
     ports:
       - "5000:5000"
     environment:
@@ -30,6 +37,8 @@ services:
       DB_USER: gamyartha_user
       DB_PASSWORD: gamyartha_pass
       DB_NAME: gamyartha
+    networks:
+      - gamyartha-net
 
   frontend:
     image: mahesh1925/gamyartha-frontend:latest
@@ -39,6 +48,12 @@ services:
       - backend
     ports:
       - "80:80"
+    networks:
+      - gamyartha-net
+
+networks:
+  gamyartha-net:
+    driver: bridge
 
 volumes:
   mysql_data:
