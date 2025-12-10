@@ -2,7 +2,6 @@ pipeline {
     agent any
 
     environment {
-        DOCKERHUB_USER = "mahesh1925"
         EC2_USER = "ubuntu"
         EC2_HOST = "13.55.102.230"
     }
@@ -20,7 +19,7 @@ pipeline {
                 script {
                     sh """
                     cd backend
-                    docker build -t ${DOCKERHUB_USER}/gamyartha-backend:latest .
+                    docker build -t gamyartha-backend:latest .
                     """
                 }
             }
@@ -31,28 +30,9 @@ pipeline {
                 script {
                     sh """
                     cd frontend
-                    docker build -t ${DOCKERHUB_USER}/gamyartha-frontend:latest .
+                    docker build -t gamyartha-frontend:latest .
                     """
                 }
-            }
-        }
-
-        stage('Login DockerHub') {
-            steps {
-                withCredentials([usernamePassword(
-                    credentialsId: 'dockerhub-creds',
-                    usernameVariable: 'USER',
-                    passwordVariable: 'PASS'
-                )]) {
-                    sh 'echo "$PASS" | docker login -u "$USER" --password-stdin'
-                }
-            }
-        }
-
-        stage('Push Images') {
-            steps {
-                sh "docker push ${DOCKERHUB_USER}/gamyartha-backend:latest"
-                sh "docker push ${DOCKERHUB_USER}/gamyartha-frontend:latest"
             }
         }
 
@@ -74,9 +54,8 @@ pipeline {
                     sh """
                         ssh -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_HOST} '
                             cd ~/Gamyartha/deploy &&
-                            docker-compose pull &&
                             docker-compose down &&
-                            docker-compose up -d
+                            docker-compose up -d --build
                         '
                     """
                 }
